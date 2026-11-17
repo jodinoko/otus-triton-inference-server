@@ -1,0 +1,16 @@
+name: "generation"
+backend: "python"
+max_batch_size: 0
+version_policy { specific { versions: [1] } }
+input [
+  { name: "PROMPT" data_type: TYPE_STRING dims: [1] }
+]
+output [
+  { name: "TEXT" data_type: TYPE_STRING dims: [1] },
+  { name: "FINISH_REASON" data_type: TYPE_STRING dims: [1] }
+]
+instance_group [ { count: 1 kind: KIND_CPU } ]
+parameters { key: "vllm_url" value: { string_value: "http://vllm:8000/v1" } }
+parameters { key: "model" value: { string_value: "Qwen/Qwen2.5-0.5B-Instruct" } }
+parameters { key: "max_tokens" value: { string_value: "128" } }
+parameters { key: "timeout_seconds" value: { string_value: "180" } }

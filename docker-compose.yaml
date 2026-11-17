@@ -1,0 +1,81 @@
+services:
+  vllm:
+    image: vllm/vllm-openai-cpu@sha256:06e9c5ee1c04c9629bf5ce570f2995338ac02a704d9db6f68adc909855111fe1
+    platform: linux/arm64
+    shm_size: 2gb
+    ports:
+      - "8003:8000"
+    volumes:
+      - vllm-hf-cache:/root/.cache/huggingface
+    environment:
+      VLLM_CPU_KVCACHE_SPACE: "1"
+      VLLM_CPU_OMP_THREADS_BIND: auto
+    command:
+      - --model
+      - Qwen/Qwen2.5-0.5B-Instruct
+      - --dtype
+      - float32
+      - --max-model-len
+      - "512"
+      - --max-num-seqs
+      - "1"
+      - --enforce-eager
+    healthcheck:
+      test:
+        - CMD
+        - python3
+        - -c
+        - >-
+          import json, urllib.request;
+          response = urllib.request.urlopen('http://localhost:8000/v1/models', timeout=5);
+          models = json.load(response);
+          assert any(model['id'] == 'Qwen/Qwen2.5-0.5B-Instruct' for model in models['data'])
+      interval: 10s
+      timeout: 10s
+      retries: 6
+      start_period: 10m
+  triton:
+    image: otus-triton-cpu:local
+    build: .
+    platform: linux/arm64
+    shm_size: 1gb
+    depends_on:
+      vllm:
+        condition: service_healthy
+    ports:
+      - "8000:8000"
+      - "8001:8001"
+      - "8002:8002"
+    volumes:
+      - ./model_repository:/models:ro
+    entrypoint: ["tritonserver"]
+    command:
+      - --model-repository=/models
+      - --allow-gpu-metrics=false
+      - --pinned-memory-pool-byte-size=0
+  prepare:
+    image: otus-triton-cpu:local
+    build: .
+    platform: linux/arm64
+    profiles: [tools]
+    volumes:
+      - ./:/workspace
+      - hf-cache:/root/.cache/huggingface
+    working_dir: /workspace
+    entrypoint: [python3]
+    command: [scripts/prepare_models.py]
+  perf:
+    image: nvcr.io/nvidia/tritonserver:24.01-py3-sdk
+    platform: linux/arm64
+    profiles: [tools]
+    volumes:
+      - ./benchmarks:/work
+    working_dir: /work
+    entrypoint: [perf_analyzer]
+    command: [--help]
+
+volumes:
+  hf-cache:
+  vllm-hf-cache:
+    name: otus-triton-hf-cache
+    external: true

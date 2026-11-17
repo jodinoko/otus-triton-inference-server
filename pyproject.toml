@@ -1,0 +1,23 @@
+[build-system]
+requires = ["hatchling>=1.27"]
+build-backend = "hatchling.build"
+
+[project]
+name = "otus-triton-inference-server"
+version = "0.1.0"
+description = "OTUS homework: model deployment with NVIDIA Triton Inference Server"
+requires-python = ">=3.12,<3.14"
+dependencies = ["numpy>=2,<3", "onnx>=1.17,<2", "tritonclient[http]>=2.42,<3"]
+
+[project.optional-dependencies]
+dev = ["ruff>=0.9,<1"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/triton_inference"]
+
+[tool.ruff]
+line-length = 100
+
+[tool.ruff.lint.per-file-ignores]
+"model_repository/embeddings/1/model.py" = ["BLE001"]
+"model_repository/generation/1/model.py" = ["BLE001"]
